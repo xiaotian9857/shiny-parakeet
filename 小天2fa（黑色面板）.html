@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
+  <title>小天2FA动态验证码生成器</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: #0f0f15;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      color: #e0e0e0;
+      background-image: 
+        radial-gradient(circle at 10% 20%, rgba(25, 25, 45, 0.8) 0%, rgba(15, 15, 30, 0.9) 100%),
+        linear-gradient(135deg, #0a0a1a 0%, #1a1a30 100%);
+    }
+
+    .container {
+      width: 90%;
+      max-width: 600px;
+      background: rgba(30, 30, 46, 0.95);
+      border-radius: 20px;
+      box-shadow: 
+        0 10px 30px rgba(0, 0, 0, 0.5),
+        0 0 0 1px rgba(80, 80, 120, 0.2);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 30px;
+      margin: 20px 0;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(100, 100, 180, 0.2);
+    }
+
+    .header {
+      font-size: 32px;
+      font-weight: 700;
+      color: #64b5f6;
+      margin-bottom: 30px;
+      text-align: center;
+      text-shadow: 0 0 15px rgba(100, 181, 246, 0.5);
+      background: linear-gradient(90deg, #64b5f6, #90caf9);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      position: relative;
+    }
+
+    .header::after {
+      content: '';
+      position: absolute;
+      bottom: -10px;
+      left: 25%;
+      width: 50%;
+      height: 3px;
+      background: linear-gradient(90deg, transparent, #64b5f6, transparent);
+      border-radius: 50%;
+    }
+
+    .content {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .input-group {
+      position: relative;
+    }
+
+    .input-group input {
+      width: 100%;
+      padding: 18px 20px 18px 60px;
+      border: 2px solid #444;
+      border-radius: 15px;
+      font-size: 18px;
+      color: #f0f0f0;
+      background: rgba(40, 40, 60, 0.7);
+      outline: none;
+      transition: all 0.3s;
+      box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.3);
+    }
+
+    .input-group input:focus {
+      border-color: #64b5f6;
+      box-shadow: 
+        inset 0 2px 10px rgba(0, 0, 0, 0.3),
+        0 0 15px rgba(100, 181, 246, 0.3);
+    }
+
+    .input-icon {
+      position: absolute;
+      left: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #64b5f6;
+      font-size: 24px;
+    }
+
+    button {
+      width: 100%;
+      padding: 18px;
+      background: linear-gradient(135deg, #2196f3, #0d47a1);
+      color: #fff;
+      border: none;
+      border-radius: 15px;
+      font-size: 20px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      box-shadow: 
+        0 6px 15px rgba(13, 71, 161, 0.4),
+        0 0 0 1px rgba(255, 255, 255, 0.1);
+      letter-spacing: 1px;
+      position: relative;
+      overflow: hidden;
+      z-index: 1;
+    }
+
+    button::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+      transition: 0.5s;
+      z-index: -1;
+    }
+
+    button:hover {
+      transform: translateY(-3px);
+      box-shadow: 
+        0 8px 20px rgba(13, 71, 161, 0.6),
+        0 0 0 1px rgba(255, 255, 255, 0.2);
+    }
+
+    button:hover::before {
+      left: 100%;
+    }
+
+    .code-container {
+      position: relative;
+      width: 100%;
+    }
+
+    .code-box {
+      width: 100%;
+      padding: 25px;
+      border: 2px solid #444;
+      border-radius: 15px;
+      text-align: center;
+      font-size: 28px;
+      font-weight: 700;
+      color: #64b5f6;
+      background: rgba(40, 40, 60, 0.7);
+      cursor: pointer;
+      transition: all 0.3s;
+      letter-spacing: 8px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 
+        inset 0 2px 10px rgba(0, 0, 0, 0.3),
+        0 4px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    .code-box:hover {
+      background: rgba(50, 50, 80, 0.8);
+      transform: translateY(-2px);
+      box-shadow: 
+        inset 0 2px 10px rgba(0, 0, 0, 0.3),
+        0 6px 20px rgba(0, 0, 0, 0.3);
+    }
+
+    .timer {
+      text-align: center;
+      font-size: 22px;
+      font-weight: 600;
+      color: #64b5f6;
+      padding: 15px;
+      background: rgba(100, 181, 246, 0.1);
+      border-radius: 12px;
+      margin: 15px 0;
+      border: 1px solid rgba(100, 181, 246, 0.2);
+      position: relative;
+    }
+
+    .timer::before {
+      content: '⏱';
+      margin-right: 10px;
+      font-size: 20px;
+    }
+
+    .copy-tip {
+      text-align: center;
+      color: #4caf50;
+      font-size: 18px;
+      margin-top: 10px;
+      display: none;
+      font-weight: 600;
+      padding: 8px;
+      background: rgba(76, 175, 80, 0.1);
+      border-radius: 8px;
+    }
+    
+    .auto-refresh-info {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 5px;
+      padding: 10px 15px;
+      border-radius: 12px;
+      background: rgba(76, 175, 80, 0.1);
+      border: 1px solid rgba(76, 175, 80, 0.2);
+    }
+    
+    .auto-refresh-indicator {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #4caf50;
+      box-shadow: 0 0 12px #4caf50;
+      animation: pulse 1.5s infinite;
+    }
+    
+    @keyframes pulse {
+      0% { transform: scale(0.9); opacity: 0.7; }
+      50% { transform: scale(1.1); opacity: 1; }
+      100% { transform: scale(0.9); opacity: 0.7; }
+    }
+    
+    .desc {
+      padding: 12px;
+      background: rgba(50, 50, 70, 0.5);
+      border-radius: 12px;
+      border: 1px solid rgba(80, 80, 120, 0.2);
+      font-size: 16px;
+      line-height: 1.6;
+    }
+    
+    .desc:nth-child(1)::before {
+      content: '1. ';
+      color: #64b5f6;
+      font-weight: bold;
+    }
+    
+    .desc:nth-child(2)::before {
+      content: '2. ';
+      color: #64b5f6;
+      font-weight: bold;
+    }
+    
+    .desc:nth-child(3)::before {
+      content: '3. ';
+      color: #64b5f6;
+      font-weight: bold;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div class="header">小天2FA动态验证码生成器</div>
+    <div class="content">
+      <div class="input-group">
+        <div class="input-icon">🔑</div>
+        <input type="text" id="secretKey" placeholder="请输入您的2FA密钥">
+      </div>
+      <button onclick="generateCode()">生成动态验证码</button>
+
+      <div class="code-container">
+        <div id="codeDisplay" class="code-box" onclick="handleCodeClick()">
+          请先生成验证码
+        </div>
+      </div>
+
+      <div id="timerDisplay" class="timer">验证码剩余有效时间：30秒</div>
+      
+      <div class="auto-refresh-info">
+        <div class="auto-refresh-indicator"></div>
+        <div>验证码过期后不会自动刷新，需要手动刷新</div>
+      </div>
+      
+      <div class="desc">点击验证码可自动复制到剪贴板</div>
+      <div class="desc">验证码有效期只有30秒，请在有效期内使用</div>
+      <div id="copyTip" class="copy-tip">✓ 验证码已复制到剪贴板</div>
+    </div>
+  </div>
+
+  <script>
+    let currentCode = '';
+    let hasGenerated = false; 
+    let timerInterval = null;
+    let storedSecretKey = '';
+
+    function base32Decode(secret) {
+      const map = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+      secret = secret.toUpperCase().replace(/[^A-Z2-7]/g, '');
+      let bits = '';
+      for (const c of secret) {
+        bits += map.indexOf(c).toString(2).padStart(5, '0');
+      }
+      const byteLength = Math.floor(bits.length / 8);
+      const result = new Uint8Array(byteLength);
+      for (let i = 0; i < byteLength; i++) {
+        result[i] = parseInt(bits.substr(i * 8, 8), 2);
+      }
+      return result;
+    }
+
+    async function generateTOTP(secret) {
+      try {
+        const key = base32Decode(secret);
+        const epoch = Math.floor(Date.now() / 1000);
+        const timeStep = 30;
+        const counter = Math.floor(epoch / timeStep);
+
+        const importedKey = await crypto.subtle.importKey(
+          'raw', key, { name: 'HMAC', hash: 'SHA-1' }, false, ['sign']
+        );
+
+        const counterBuf = new ArrayBuffer(8);
+        new DataView(counterBuf).setUint32(4, counter);
+
+        const signature = await crypto.subtle.sign('HMAC', importedKey, counterBuf);
+
+        const offset = new DataView(signature).getUint8(19) & 0xf;
+        const code = (new DataView(signature).getUint32(offset) & 0x7fffffff) % 1000000;
+        return code.toString().padStart(6, '0');
+      } catch (error) {
+        console.error('生成失败:', error);
+        return 'ERROR';
+      }
+    }
+
+    // 计时系统（无自动刷新功能）
+    function startTimerSystem() {
+      const timerDisplay = document.getElementById('timerDisplay');
+      
+      // 清除之前的定时器
+      clearInterval(timerInterval);
+      
+      // 每100毫秒更新一次
+      timerInterval = setInterval(() => {
+        const now = Math.floor(Date.now() / 1000);
+        const timeStep = 30;
+        const secondsLeft = timeStep - (now % timeStep);
+        
+        // 更新计时器显示
+        timerDisplay.innerText = `验证码剩余有效时间：${secondsLeft}秒`;
+        
+        // 当验证码过期时，停止计时器
+        if (secondsLeft <= 0 && storedSecretKey && hasGenerated) {
+          clearInterval(timerInterval);
+          timerDisplay.innerText = '验证码已过期';
+        }
+      }, 100);
+    }
+
+    function handleCodeClick() {
+      if (!currentCode || currentCode === 'ERROR') {
+        alert('请先生成有效的验证码！');
+        return;
+      }
+
+      navigator.clipboard.writeText(currentCode)
+       .then(() => {
+          const copyTip = document.getElementById('copyTip');
+          copyTip.style.display = 'block';
+          setTimeout(() => {
+            copyTip.style.display = 'none';
+          }, 2000);
+        })
+       .catch(err => {
+          alert('复制失败，请手动复制');
+        });
+    }
+
+    async function generateCode() {
+      const secretKey = document.getElementById('secretKey').value.trim();
+      if (!secretKey) {
+        alert('请先输入密钥！');
+        return;
+      }
+
+      // 存储密钥
+      storedSecretKey = secretKey;
+      
+      document.getElementById('codeDisplay').innerText = '生成中...';
+      const code = await generateTOTP(secretKey);
+
+      if (code === 'ERROR') {
+        document.getElementById('codeDisplay').innerText = '密钥无效';
+        currentCode = '';
+        hasGenerated = false; 
+        return;
+      }
+
+      document.getElementById('codeDisplay').innerText = code;
+      currentCode = code;
+      hasGenerated = true; 
+      
+      // 启动计时系统
+      startTimerSystem();
+    }
+
+    // 页面加载完就启动定时器
+    window.onload = function () { 
+      startTimerSystem();
+    };
+  </script>
+</body>
+
+</html>
